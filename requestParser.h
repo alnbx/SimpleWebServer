@@ -6,4 +6,3 @@
 #include "defs.h"
 
 request* parseRequest(char *requestText);
-

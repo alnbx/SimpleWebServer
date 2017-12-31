@@ -1,13 +1,28 @@
 #include <string.h>
 #include "requestParser.h"
 
+request * parseRequest(char * requestText);
+
+static char *copyMemory(char *text);
+static int countHeaders(char *text, char delim);
+static char **allocateArrayOfCharPointers(int numberOfHeaders);
+static char *allocateHeader(int headerSize);
+static void parseData(request *req, char *text);
+static void parseHeaders(request *req, char *text);
+static void parseNonPOSTRequest(request *req, char *text);
+static void parsePOSTRequest(request *req, char *text);
+static int setMethod(request *req, char **text);
+static void parsePath(request* req, char **text);
+static void parseRequestByMethod(request *req, char *text);
+/*******************************************************************************************************************************/
+
 /********************************************************************************************************************************
 Function Name:			copyMemory
 Return value:			char *
 Description:			copies the text parameter to a new variable and returns it.
 Dinamically allocated:	(char *)ret
 ********************************************************************************************************************************/
-char *copyMemory(char *text)
+static char *copyMemory(char *text)
 {
 	char *ret = NULL;
 
@@ -26,7 +41,7 @@ Return value:			int
 Description:			Counts hot many hedears in the request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-int countHeaders(char *text, char delim)
+static int countHeaders(char *text, char delim)
 {
 	if (NULL == text) { return 0; }
 
@@ -45,7 +60,7 @@ Return value:			char**
 Description:			allocates array of pointers for the headers. Each header is an array of its' own.
 Dinamically allocated:	(char**)ret
 ********************************************************************************************************************************/
-char **allocateArrayOfCharPointers(int numberOfHeaders)
+static char **allocateArrayOfCharPointers(int numberOfHeaders)
 {
 	char **ret = NULL;
 
@@ -62,7 +77,7 @@ Return value:			char*
 Description:			allocates space for a hedear.
 Dinamically allocated:	(char*)ret
 ********************************************************************************************************************************/
-char *allocateHeader(int headerSize)
+static char *allocateHeader(int headerSize)
 {
 	char *ret = NULL;
 
@@ -83,7 +98,7 @@ Return value:			None
 Description:			parsing the data section of a request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parseData(request *req, char *text)
+static void parseData(request *req, char *text)
 {
 	char delim = '&';
 	char *token = NULL;
@@ -109,7 +124,7 @@ Return value:			None
 Description:			parsing the header section of a request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parseHeaders(request *req, char *text)
+static void parseHeaders(request *req, char *text)
 {
 	char delim = '\n';
 	char *token = NULL;
@@ -135,7 +150,7 @@ Return value:			None
 Description:			parsing Non Post requests - GET, HEAD, OPTIONS, PUT, DELETE, TRACE.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parseNonPOSTRequest(request *req, char *text)
+static void parseNonPOSTRequest(request *req, char *text)
 {
 	int Offset = 0;
 	char delim = ' ';
@@ -156,7 +171,7 @@ Return value:			None
 Description:			parsing POST requests.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parsePOSTRequest(request *req, char *text)
+static void parsePOSTRequest(request *req, char *text)
 {
 	//NOTE: JUST IF YOU HAVE TIME!!!!!!!
 	//TODO: add parsing to POST requests
@@ -169,7 +184,7 @@ Return value:			Int
 Description:			parsing request by method.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-int setMethod(request *req, char **text)
+static int setMethod(request *req, char **text)
 {
 	int isPost = FALSE;
 
@@ -191,7 +206,7 @@ Return value:			None
 Description:			parsing the path out of a request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parsePath(request* req, char **text)
+static void parsePath(request* req, char **text)
 {
 	int Offset = 0;
 	char *delim = "? ";
@@ -207,7 +222,7 @@ Return value:			None
 Description:			parsing request by method.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parseRequestByMethod(request *req, char *text)
+static void parseRequestByMethod(request *req, char *text)
 {
 	int isPost = FALSE;
 
