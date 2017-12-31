@@ -13,8 +13,12 @@ enum methods {GET = 0, HEAD = 1, OPTIONS = 2, PUT = 3, MDELETE = 4, TRACE = 5, e
 
 typedef struct _request {
 	int method;
-	int   numberOfHeaders;
+	int numberOfHeaders;
+	int numberOfDataArguments;
 	char **headers;
+	char **dataArguments;
+	char *path;
+	
 	float HTTPVersion;
 }request;
 

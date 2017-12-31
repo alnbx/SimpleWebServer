@@ -14,7 +14,11 @@ int initializeRequest(request * req)
 	memset(req->method, 0, sizeof(req->method));
 
 	req->numberOfHeaders = 0;
-	char **headers = NULL;
+	req->numberOfDataArguments = 0;
+	req->headers = NULL;
+	req->dataArguments = NULL;
+	req->path = NULL;
+
 	float HTTPVersion = 0.0;
 
 	return SUCCESS;

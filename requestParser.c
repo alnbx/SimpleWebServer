@@ -26,12 +26,11 @@ Return value:			int
 Description:			Counts hot many hedears in the request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-int countHeaders(char *text)
+int countHeaders(char *text, char delim)
 {
 	if (NULL == text) { return 0; }
 
 	char *token = NULL;
-	const char *delim = "&\n";
 	int numberOfHeaders = 0;
 
 	token = strtok(text, delim);
@@ -41,12 +40,12 @@ int countHeaders(char *text)
 }
 
 /********************************************************************************************************************************
-Function Name:			allocateHeadersArray
+Function Name:			allocateArrayOfCharPointers
 Return value:			char**
 Description:			allocates array of pointers for the headers. Each header is an array of its' own.
 Dinamically allocated:	(char**)ret
 ********************************************************************************************************************************/
-char **allocateHeadersArray(int numberOfHeaders)
+char **allocateArrayOfCharPointers(int numberOfHeaders)
 {
 	char **ret = NULL;
 
@@ -76,6 +75,8 @@ char *allocateHeader(int headerSize)
 	return ret;
 }
 
+//TODO: parseData and parseHeaders has the same parsing code! Unite!
+
 /********************************************************************************************************************************
 Function Name:			parseData
 Return value:			None
@@ -84,15 +85,22 @@ Dinamically allocated:	None
 ********************************************************************************************************************************/
 void parseData(request *req, char *text)
 {
-	const char *delim = "&";
+	char delim = '&';
 	char *token = NULL;
+	int i = 0;
+	int len = 0;
+	
+	req->numberOfDataArguments = countHeaders(copyMemory(text), delim);
+	req->dataArguments = allocateArrayOfCharPointers(req->numberOfDataArguments);
 
 	token = strtok(text, delim);
 	while (NULL != token)
 	{
-		
+		len = strlen(token);
+		*(req->dataArguments + i) = allocateHeader(len);
+		memcpy(*(req->dataArguments + i), token, len + 1);
+		i++;
 	}
-
 }
 
 /********************************************************************************************************************************
@@ -103,92 +111,94 @@ Dinamically allocated:	None
 ********************************************************************************************************************************/
 void parseHeaders(request *req, char *text)
 {
-	const char *delim = "\n";
+	char delim = '\n';
 	char *token = NULL;
 	int i = 0;
 	int len = 0;
 
-	req->numberOfHeaders = countHeaders(copyMemory(text));
-	req->headers = allocateHeadersArray(req->numberOfHeaders);
+	req->numberOfHeaders = countHeaders(copyMemory(text), delim);
+	req->headers = allocateArrayOfCharPointers(req->numberOfHeaders);
 
-	token = strtok(text, delim);
+	token = strtok(text, &delim);
 	while (NULL != token)
 	{
 		len = strlen(token);
 		*(req->headers + i) = allocateHeader(len);
-		memcpy(*(req->headers + i), token, len);
+		memcpy(*(req->headers + i), token, len + 1);
+		i++;
 	}
 }
 
 /********************************************************************************************************************************
-Function Name:			parseGETRequest
+Function Name:			parseNonPOSTRequest
 Return value:			None
-Description:			parsing GET request.
+Description:			parsing Non Post requests - GET, HEAD, OPTIONS, PUT, DELETE, TRACE.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parseGETRequest(request *req, char *text)
+void parseNonPOSTRequest(request *req, char *text)
 {
-	req->method = GET;
-	const char *delim = " ";
-	char *token = NULL;
-	token = strtok(text, delim);
+	int Offset = 0;
+	char delim = ' ';
+	char *token = strtok(text, (const char *) &delim);
 	parseData(req, token);
-	parseHeaders(req, text + sizeof(token) + 1);
+	Offset = strlen(token);
+	token = strtok(text, (const char *) &delim);
+	req->HTTPVersion = atof(token);
+	Offset += strlen(token);
+	delim = '\n';
+	token = strtok(text, (const char *) &delim);
+	parseHeaders(req, text + Offset + strlen(token) + 1);
 }
 
 /********************************************************************************************************************************
-Function Name:			parseHEADRequest
+Function Name:			parseNonPOSTRequest
 Return value:			None
-Description:			parsing HEAD request.
+Description:			parsing POST requests.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parseHEADRequest(request *req, char *text)
+void parsePOSTRequest(request *req, char *text)
 {
-	req->method = HEAD;
+	//NOTE: JUST IF YOU HAVE TIME!!!!!!!
+	//TODO: add parsing to POST requests
+	return;
 }
 
 /********************************************************************************************************************************
-Function Name:			parseOPTIONSRequest
-Return value:			None
-Description:			parsing OPTIONS request.
+Function Name:			setMethod
+Return value:			Int
+Description:			parsing request by method.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parseOPTIONSRequest(request *req, char *text)
+int setMethod(request *req, char **text)
 {
-	req->method = OPTIONS;
+	int isPost = FALSE;
+
+	if (0 == strncmp("GET", text, 3)) { req->method = GET; *text += 3; }
+	//else if(0 == strncmp("POST", text, 4))   { req->method = POST; *text += 4; isPost = TRUE; }
+	else if (0 == strncmp("HEAD", text, 4)) { req->method = HEAD; *text += 4; }
+	else if (0 == strncmp("OPTIONS", text, 7)) { req->method = OPTIONS; *text += 8; }
+	else if (0 == strncmp("PUT", text, 3)) { req->method = PUT; *text += 4; }
+	else if (0 == strncmp("DELETE", text, 6)) { req->method = MDELETE; *text += 7; }
+	else if (0 == strncmp("TRACE", text, 5)) { req->method = TRACE; *text += 6; }
+	else exit(ILLIGAL_INPUT);
+
+	return isPost;
 }
 
 /********************************************************************************************************************************
-Function Name:			parsePUTRequest
+Function Name:			parsePath
 Return value:			None
-Description:			parsing PUT request.
+Description:			parsing the path out of a request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-void parsePUTRequest(request *req, char *text)
+void parsePath(request* req, char **text)
 {
-	req->method = PUT;
-}
+	int Offset = 0;
+	char *delim = "? ";
+	char *token = strtok(text, delim);
 
-/********************************************************************************************************************************
-Function Name:			parseDELETERequest
-Return value:			None
-Description:			parsing DELETE request.
-Dinamically allocated:	None
-********************************************************************************************************************************/
-void parseDELETERequest(request *req, char *text)
-{
-	req->method = MDELETE;
-}
-
-/********************************************************************************************************************************
-Function Name:			parseTRACEequest
-Return value:			None
-Description:			parsing TRACE request.
-Dinamically allocated:	None
-********************************************************************************************************************************/
-void parseTRACERequest(request *req, char *text)
-{
-	req->method = TRACE;
+	req->path = allocateHeader(strlen(token) + 1);
+	memcpy(req->path, token, strlen(token) + 1);
 }
 
 /********************************************************************************************************************************
@@ -199,14 +209,13 @@ Dinamically allocated:	None
 ********************************************************************************************************************************/
 void parseRequestByMethod(request *req, char *text)
 {
-	if (0 == strncmp("GET", text, 3))         { parseGETRequest(req, text + 4); }
-	//else if(0 == strncmp("POST", text, 4))  { parsePOSTRequest(req, text); }
-	else if(0 == strncmp("HEAD", text, 4))    { parseHEADRequest(req, text + 5); }
-	else if(0 == strncmp("OPTIONS", text, 7)) { parseOPTIONSRequest(req, text + 8); }
-	else if (0 == strncmp("PUT", text, 3))    { parsePUTRequest(req, text + 4); }
-	else if (0 == strncmp("DELETE", text, 6)) { parseDELETERequest(req, text + 7); }
-	else if (0 == strncmp("TRACE", text, 5))  { parseTRACERequest(req, text + 6); }
-	else exit(ILLIGAL_INPUT);
+	int isPost = FALSE;
+
+	isPost = setMethod(req, &text);
+	parsePath(req, &text);
+
+	if (FALSE == isPost) { parseNonPOSTRequest(req, text); }
+	else                 { parsePOSTRequest(req, text); }
 }
 
 /********************************************************************************************************************************
