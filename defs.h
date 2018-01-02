@@ -18,8 +18,7 @@ typedef struct _request {
 	char **headers;
 	char **dataArguments;
 	char *path;
-	
-	float HTTPVersion;
+	int HTTPVersion;
 }request;
 
 int initializeRequest(request *req);

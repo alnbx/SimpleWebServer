@@ -1,20 +1,56 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <string.h>
 #include "requestParser.h"
 
+void freeRequest(request *req);
 request * parseRequest(char * requestText);
 
+static void freePointers(char **header, int num);
 static char *copyMemory(char *text);
-static int countHeaders(char *text, char delim);
+static int countHeaders(char *text, const char *delim);
 static char **allocateArrayOfCharPointers(int numberOfHeaders);
 static char *allocateHeader(int headerSize);
-static void parseData(request *req, char *text);
+static void parseData(request *req, char **text);
 static void parseHeaders(request *req, char *text);
 static void parseNonPOSTRequest(request *req, char *text);
 static void parsePOSTRequest(request *req, char *text);
-static int setMethod(request *req, char **text);
+static int setMethod(request *req, char *method, char **text);
 static void parsePath(request* req, char **text);
 static void parseRequestByMethod(request *req, char *text);
 /*******************************************************************************************************************************/
+
+// TODO: change all strtok to strtok_s
+
+/********************************************************************************************************************************
+Function Name:			freePointers
+Return value:			None
+Description:			frees array of pointers by size(num).
+Dinamically allocated:	None
+********************************************************************************************************************************/
+static void freePointers(char **header, int num)
+{
+	int i = 0;
+
+	for (; i < num; i++) { free(*(header + i)); }
+	free(header);
+}
+
+/********************************************************************************************************************************
+Function Name:			freeRequest
+Return value:			None
+Description:			frees a request.
+Dinamically allocated:	None
+********************************************************************************************************************************/
+void freeRequest(request *req)
+{
+	int i = 0;
+	
+	if (req->numberOfHeaders > 0) { freePointers(req->headers, req->numberOfHeaders); }
+	if (req->numberOfDataArguments > 0) { freePointers(req->dataArguments, req->numberOfDataArguments); }
+	free(req->path);
+	free(req);
+}
 
 /********************************************************************************************************************************
 Function Name:			copyMemory
@@ -41,7 +77,7 @@ Return value:			int
 Description:			Counts hot many hedears in the request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-static int countHeaders(char *text, char delim)
+static int countHeaders(char *text, const char *delim)
 {
 	if (NULL == text) { return 0; }
 
@@ -49,7 +85,11 @@ static int countHeaders(char *text, char delim)
 	int numberOfHeaders = 0;
 
 	token = strtok(text, delim);
-	while (NULL != token) { numberOfHeaders++; }
+	while (NULL != token) 
+	{ 
+		numberOfHeaders++; 
+		token = strtok(NULL, delim);
+	}
 
 	return numberOfHeaders;
 }
@@ -64,7 +104,7 @@ static char **allocateArrayOfCharPointers(int numberOfHeaders)
 {
 	char **ret = NULL;
 
-	ret = (char **)malloc(sizeof(char) * numberOfHeaders);
+	ret = (char **)malloc(sizeof(char *) * numberOfHeaders);
 	if (NULL == ret) { exit(EXIT_MEMORY_ALLOCATION); }
 
 	for (int i = 0; i < numberOfHeaders; i++) { *(ret + i) = NULL; }
@@ -98,24 +138,27 @@ Return value:			None
 Description:			parsing the data section of a request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-static void parseData(request *req, char *text)
+static void parseData(request *req, char **text)
 {
-	char delim = '&';
 	char *token = NULL;
 	int i = 0;
 	int len = 0;
+	int totalLen = 0;
 	
-	req->numberOfDataArguments = countHeaders(copyMemory(text), delim);
+	req->numberOfDataArguments = countHeaders(copyMemory(*text), "&");
 	req->dataArguments = allocateArrayOfCharPointers(req->numberOfDataArguments);
 
-	token = strtok(text, delim);
+	token = strtok(text, (const char *) "&");
 	while (NULL != token)
 	{
 		len = strlen(token);
+		totalLen += len + 1;
 		*(req->dataArguments + i) = allocateHeader(len);
-		memcpy(*(req->dataArguments + i), token, len + 1);
+		strcpy(*(req->dataArguments + i), token);
 		i++;
+		token = strtok(NULL, "&");
 	}
+	*text += totalLen + 1;
 }
 
 /********************************************************************************************************************************
@@ -126,21 +169,21 @@ Dinamically allocated:	None
 ********************************************************************************************************************************/
 static void parseHeaders(request *req, char *text)
 {
-	char delim = '\n';
 	char *token = NULL;
 	int i = 0;
 	int len = 0;
 
-	req->numberOfHeaders = countHeaders(copyMemory(text), delim);
+	req->numberOfHeaders = countHeaders(copyMemory(text), "\n");
 	req->headers = allocateArrayOfCharPointers(req->numberOfHeaders);
 
-	token = strtok(text, &delim);
+	token = strtok(text, "\n");
 	while (NULL != token)
 	{
 		len = strlen(token);
-		*(req->headers + i) = allocateHeader(len);
-		memcpy(*(req->headers + i), token, len + 1);
+		*(req->headers + i) = allocateHeader(len + 1);
+		strcpy(*(req->headers + i), token);
 		i++;
+		token = strtok(NULL, "\n");
 	}
 }
 
@@ -153,16 +196,13 @@ Dinamically allocated:	None
 static void parseNonPOSTRequest(request *req, char *text)
 {
 	int Offset = 0;
-	char delim = ' ';
-	char *token = strtok(text, (const char *) &delim);
-	parseData(req, token);
-	Offset = strlen(token);
-	token = strtok(text, (const char *) &delim);
-	req->HTTPVersion = atof(token);
-	Offset += strlen(token);
-	delim = '\n';
-	token = strtok(text, (const char *) &delim);
-	parseHeaders(req, text + Offset + strlen(token) + 1);
+	const char *delim = " \n";
+	char *token = strtok(text, delim);
+	req->HTTPVersion = atoi(token + 7);
+	Offset += strlen(token) + 1;
+	while ((tolower(*(text + Offset)) < 'a') || (tolower(*(text + Offset)) > 'z')) { Offset += 1; }
+
+	parseHeaders(req, text + Offset);
 }
 
 /********************************************************************************************************************************
@@ -184,20 +224,39 @@ Return value:			Int
 Description:			parsing request by method.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-static int setMethod(request *req, char **text)
+static int setMethod(request *req, char *method, char **text)
 {
 	int isPost = FALSE;
 
-	if (0 == strncmp("GET", text, 3)) { req->method = GET; *text += 3; }
-	//else if(0 == strncmp("POST", text, 4))   { req->method = POST; *text += 4; isPost = TRUE; }
-	else if (0 == strncmp("HEAD", text, 4)) { req->method = HEAD; *text += 4; }
-	else if (0 == strncmp("OPTIONS", text, 7)) { req->method = OPTIONS; *text += 8; }
-	else if (0 == strncmp("PUT", text, 3)) { req->method = PUT; *text += 4; }
-	else if (0 == strncmp("DELETE", text, 6)) { req->method = MDELETE; *text += 7; }
-	else if (0 == strncmp("TRACE", text, 5)) { req->method = TRACE; *text += 6; }
+	if (0 == strncmp("GET", method, 3)) { req->method = GET; *text += 3; }
+	//else if(0 == strncmp("POST", method, 4))   { req->method = POST; *text += 4; isPost = TRUE; }
+	else if (0 == strncmp("HEAD", method, 4)) { req->method = HEAD; *text += 4; }
+	else if (0 == strncmp("OPTIONS", method, 7)) { req->method = OPTIONS; *text += 8; }
+	else if (0 == strncmp("PUT", method, 3)) { req->method = PUT; *text += 4; }
+	else if (0 == strncmp("DELETE", method, 6)) { req->method = MDELETE; *text += 7; }
+	else if (0 == strncmp("TRACE", method, 5)) { req->method = TRACE; *text += 6; }
 	else exit(ILLIGAL_INPUT);
 
+	*text += 1;
 	return isPost;
+}
+
+/********************************************************************************************************************************
+Function Name:			parsePath
+Return value:			None
+Description:			parsing the path out of a request.
+Dinamically allocated:	None
+********************************************************************************************************************************/
+static void putPath(request *req, char **text)
+{
+	int len = 0;
+
+	len = strlen(*text);
+	req->path = allocateHeader(len + 1);
+	strcpy(req->path, *text);
+	*(req->path + len) = '\0';
+
+	*text += len + 1;
 }
 
 /********************************************************************************************************************************
@@ -208,12 +267,14 @@ Dinamically allocated:	None
 ********************************************************************************************************************************/
 static void parsePath(request* req, char **text)
 {
-	int Offset = 0;
-	char *delim = "? ";
-	char *token = strtok(text, delim);
+	char *token = strtok(*text, " ");
 
-	req->path = allocateHeader(strlen(token) + 1);
-	memcpy(req->path, token, strlen(token) + 1);
+	if (strchr(token, "?"))
+	{
+		putPath(req, text);
+		parseData(req, text);
+	}
+	else { putPath(req, text); }
 }
 
 /********************************************************************************************************************************
@@ -225,8 +286,9 @@ Dinamically allocated:	None
 static void parseRequestByMethod(request *req, char *text)
 {
 	int isPost = FALSE;
+	char *token = strtok(text, " ");
 
-	isPost = setMethod(req, &text);
+	isPost = setMethod(req, token, &text);
 	parsePath(req, &text);
 
 	if (FALSE == isPost) { parseNonPOSTRequest(req, text); }
@@ -241,11 +303,21 @@ Dinamically allocated:	(request *)req
 ********************************************************************************************************************************/
 request * parseRequest(char * requestText)
 {
-	request *req = (request *)malloc(sizeof(request) * 1);
+	char *text = NULL;
+	request *req = NULL;
+	int reqSize = 0;
+
+	reqSize = strlen(requestText);
+	req = (request *)malloc(sizeof(request) * 1);
 	if (NULL == req) { exit(EXIT_MEMORY_ALLOCATION); }
 	if (SUCCESS != initializeRequest(req)) { return NULL; }
 
-	parseRequestByMethod(req, requestText);
+	text = (char *)malloc(sizeof(char)*reqSize + 1);
+	if (NULL == text) { exit(EXIT_MEMORY_ALLOCATION); }
+	strcpy(text, requestText);
+
+	parseRequestByMethod(req, text);
+	free(text);
 
 	return req;
 }

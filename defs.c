@@ -14,15 +14,12 @@ Dinamically allocated:	None
 int initializeRequest(request * req)
 {
 	req->method = enumSize;
-	memset(req->method, 0, sizeof(req->method));
-
 	req->numberOfHeaders = 0;
 	req->numberOfDataArguments = 0;
 	req->headers = NULL;
 	req->dataArguments = NULL;
 	req->path = NULL;
-
-	float HTTPVersion = 0.0;
+	req->HTTPVersion = 0;
 
 	return SUCCESS;
 }
