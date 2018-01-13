@@ -28,7 +28,7 @@ static int parseNonPOSTRequest(request *req, char *text);
 static int parsePOSTRequest(request *req, char *text);
 static int setMethod(request *req, char *method, char **text);
 static int putPath(request *req, char *text);
-static int validatePath(char *path);
+static int validatePath(request* req, char *path);
 static int parsePath(request* req, char **text);
 static int parseRequestByMethod(request *req, char *text);
 /*******************************************************************************************************************************/
@@ -346,10 +346,10 @@ static int putPath(request *req, char *text)
 {
 	int len = 0;
 
-	len = strlen(*text);
+	len = strlen(text);
 	req->path = allocateHeader(len + 1);
 	if (req->path == NULL) { return FAILURE; }
-	strcpy(req->path, *text);
+	strcpy(req->path, text);
 	*(req->path + len) = '\0';
 
 	//*text += len + 1;

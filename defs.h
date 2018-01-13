@@ -10,7 +10,18 @@
 #define TRUE                    1
 #define EXIT_MEMORY_ALLOCATION	2
 #define ILLIGAL_INPUT			3
+#define MAX_SOCKETS				60
+#define TIME_PORT				27015
+#define EMPTY					0
+#define LISTEN					1
+#define RECEIVE					2
+#define IDLE					3
+#define SEND					4
+#define SEND_TIME				1
+#define SEND_SECONDS			2
 enum methods {GET = 0, HEAD = 1, OPTIONS = 2, PUT = 3, MDELETE = 4, TRACE = 5, POST = 6, ILLEGAL = 7, enumSize = 8 };
+
+extern const char *rootFolder;
 
 typedef struct _request 
 {
@@ -37,6 +48,20 @@ typedef struct _response
 	char *responseData;
 } response;
 
+typedef struct _SocketState
+{
+	SOCKET id;			// Socket handle
+	request *request;
+	response *response;
+	//int methodsStatus;
+	int status;
+	//int	recv;			// Receiving?
+	//int	send;			// Sending?
+	//int sendSubType;	// Sending sub-type
+
+}SocketState;
+
 int initializeRequest(request *req);
 int initializeResponse(response *res, request *req);
+void initializeSocketState(SocketState *sockerState);
 char *getFullPath(char *pathToConcat);

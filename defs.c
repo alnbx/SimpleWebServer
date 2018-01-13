@@ -8,9 +8,11 @@
 // External functions
 /*******************************************************************************************************************************/
 int initializeRequest(request * req);
-int initializeResponse(response * res);
+int initializeResponse(response * res, request *req);
 char *getFullPath(char *pathToConcat);
+void initializeSocketState(SocketState *sockerState);
 
+const char *rootFolder = "C:\\www\\";
 /*******************************************************************************************************************************/
 // Internal functions
 /*******************************************************************************************************************************/
@@ -58,6 +60,19 @@ int initializeResponse(response * res, request *req)
 }
 
 /********************************************************************************************************************************
+Function Name:			initializeSocketState
+Return value:			None
+Description:			initializing a socket state
+Dinamically allocated:	None
+********************************************************************************************************************************/
+void initializeSocketState(SocketState *sockerState)
+{
+	sockerState->request = NULL;
+	sockerState->response = NULL;
+	sockerState->status = 0;
+}
+
+/********************************************************************************************************************************
 Function Name:			getFullPath
 Return value:			char *
 Description:			concatinating the full path to the desired file in the server.
@@ -66,13 +81,13 @@ Dinamically allocated:	(char *)ret
 char * getFullPath(char *pathToConcat)
 {
 	char *ret = NULL;
-	int len = strlen("C:\\www\\");
+	int len = strlen(rootFolder);
 
 	ret = (char *)malloc(sizeof(char) * strlen(pathToConcat) + 1 + len);
 	if (NULL == ret) { return NULL; }
 	
 	if (*pathToConcat != '\\') { return NULL; }
-	strcpy_s(ret, len, "C:\\www\\");
+	strcpy_s(ret, len, rootFolder);
 	strcat(ret, (const char *)(pathToConcat + 1));
 
 	return ret;
