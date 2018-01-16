@@ -28,7 +28,7 @@ static int parseNonPOSTRequest(request *req, char *text);
 static int parsePOSTRequest(request *req, char *text);
 static int setMethod(request *req, char *method, char **text);
 static int putPath(request *req, char *text);
-static int validatePath(request* req, char *path);
+static int validatePath(char *path);
 static int parsePath(request* req, char **text);
 static int parseRequestByMethod(request *req, char *text);
 /*******************************************************************************************************************************/
@@ -71,7 +71,7 @@ Dinamically allocated:	None
 void freeRequest(request *req)
 {
 	int i = 0;
-	
+
 	if (req->numberOfHeaders > 0) { freePointers(req->headers, req->numberOfHeaders); }
 	if (req->numberOfDataArguments > 0) { freePointers(req->dataArguments, req->numberOfDataArguments); }
 	if (!(NULL == req->path)) { free(req->path); }
@@ -111,9 +111,9 @@ static int countHeaders(char *text, const char *delim)
 	int numberOfHeaders = 0;
 
 	token = strtok(text, delim);
-	while (NULL != token) 
-	{ 
-		numberOfHeaders++; 
+	while (NULL != token)
+	{
+		numberOfHeaders++;
 		token = strtok(NULL, delim);
 	}
 
@@ -174,7 +174,7 @@ static int parseData(request *req, char *text)
 
 	memoryAddress = copyMemory(text);
 	if (NULL == memoryAddress) { return FAILURE; }
-	
+
 	req->numberOfDataArguments = countHeaders(memoryAddress, "&");
 	req->dataArguments = allocateArrayOfCharPointers(req->numberOfDataArguments);
 	if (NULL == req->dataArguments) { return FAILURE; }
@@ -187,7 +187,7 @@ static int parseData(request *req, char *text)
 		memoryAddress = allocateHeader(len);
 		if (NULL == memoryAddress) { return FAILURE; }
 		*(req->dataArguments + i) = memoryAddress;
-		strcpy(*(req->dataArguments + i), token); 
+		strcpy(*(req->dataArguments + i), token);
 		//TODO: Check if '\0' is needed in the end?
 		i++;
 		token = strtok(NULL, "&");
@@ -346,10 +346,10 @@ static int putPath(request *req, char *text)
 {
 	int len = 0;
 
-	len = strlen(text);
+	len = strlen(*text);
 	req->path = allocateHeader(len + 1);
 	if (req->path == NULL) { return FAILURE; }
-	strcpy(req->path, text);
+	strcpy(req->path, *text);
 	*(req->path + len) = '\0';
 
 	//*text += len + 1;
@@ -386,7 +386,7 @@ static int parsePath(request* req, char **text)
 	int legalPathAndData = FAILURE;
 
 	beginningOfData = strchr(token, '?');
-	legalPathAndData = validatePath(req,token);
+	legalPathAndData = validatePath(req, token);
 
 	if (SUCCESS == legalPathAndData)
 	{
@@ -419,16 +419,16 @@ static int parseRequestByMethod(request *req, char *text)
 	isPost = setMethod(req, token, &text);
 	legalPath = parsePath(req, &text);
 
-	if (ILLEGAL == isPost || FAILURE == legalPath)	{ return FAILURE; }
-	else if (!(POST == isPost))						{ return parseNonPOSTRequest(req, text); }
-	else											{ return parsePOSTRequest(req, text); }
+	if (ILLEGAL == isPost || FAILURE == legalPath) { return FAILURE; }
+	else if (!(POST == isPost)) { return parseNonPOSTRequest(req, text); }
+	else { return parsePOSTRequest(req, text); }
 
 	return SUCCESS;
 }
 
 /********************************************************************************************************************************
 Function Name:			parseRequestByMethod
-Return value:			request * 
+Return value:			request *
 Description:			parsing an incoming request.
 Dinamically allocated:	(request *)req
 ********************************************************************************************************************************/
