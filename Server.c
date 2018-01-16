@@ -15,7 +15,7 @@ void mainServer(void)
 
 	if (NO_ERROR != WSAStartup(MAKEWORD(2, 2), &wsaData))
 	{
-		printf("Time Server: Error at at WSAStartup()\n");
+		printf("Error at at WSAStartup()\n");
 		return;
 	}
 
@@ -23,7 +23,7 @@ void mainServer(void)
 
 	if (INVALID_SOCKET == listenSocket)
 	{
-		printf("Time Server: Error at socket(): %d \n", WSAGetLastError());
+		printf("Error at socket(): %d \n", WSAGetLastError());
 		WSACleanup();
 		return;
 	}
@@ -35,7 +35,7 @@ void mainServer(void)
 	serverService.sin_port = htons(TIME_PORT);
 	if (SOCKET_ERROR == bind(listenSocket, (SOCKADDR *)&serverService, sizeof(serverService)))
 	{
-		printf("Time Server: Error at bind(): %d \n", WSAGetLastError());
+		printf("Error at bind(): %d \n", WSAGetLastError());
 		closesocket(listenSocket);
 		WSACleanup();
 		return;
@@ -43,7 +43,7 @@ void mainServer(void)
 
 	if (SOCKET_ERROR == listen(listenSocket, 5))
 	{
-		printf("Time Server: Error at listen(): %d \n", WSAGetLastError());
+		printf("Error at listen(): %d \n", WSAGetLastError());
 		closesocket(listenSocket);
 		WSACleanup();
 		return;
@@ -73,7 +73,7 @@ void mainServer(void)
 		nfd = select(0, &waitRecv, &waitSend, NULL, NULL);
 		if (nfd == SOCKET_ERROR)
 		{
-			printf("Time Server: Error at select(): %d\n", WSAGetLastError());
+			printf("Error at select(): %d\n", WSAGetLastError());
 			WSACleanup();
 			return;
 		}
@@ -112,7 +112,7 @@ void mainServer(void)
 	}
 
 	// Closing connections and Winsock.
-	printf("Time Server: Closing Connection.\n");
+	printf("Closing Connection.\n");
 	closesocket(listenSocket);
 	WSACleanup();
 }
@@ -149,10 +149,10 @@ void acceptConnection(int index)
 	SOCKET msgSocket = accept(id, (struct sockaddr *)&from, &fromLen);
 	if (INVALID_SOCKET == msgSocket)
 	{
-		printf("Time Server: Error at accept(): %d \n", WSAGetLastError());
+		printf("Error at accept(): %d \n", WSAGetLastError());
 		return;
 	}
-	printf("Time Server: Client %s", inet_ntoa(from.sin_addr));
+	printf("Client %s", inet_ntoa(from.sin_addr));
 	printf(": %d is connected. \n", ntohs(from.sin_port));
 
 	//initializeRequest(sockets[index].request);
@@ -163,7 +163,7 @@ void acceptConnection(int index)
 	unsigned long flag = 1;
 	if (ioctlsocket(msgSocket, FIONBIO, &flag) != 0)
 	{
-		printf("Time Server: Error at ioctlsocket(): %d \n", WSAGetLastError());
+		printf("Error at ioctlsocket(): %d \n", WSAGetLastError());
 	}
 
 	if (addSocket(msgSocket, RECEIVE) == FALSE)
@@ -184,7 +184,7 @@ void receiveMessage(int index)
 	
 	if (SOCKET_ERROR == bytesRecv)
 	{
-		printf("Time Server: Error at recv(): %d \n", WSAGetLastError());
+		printf("Error at recv(): %d \n", WSAGetLastError());
 		closesocket(msgSocket);
 		removeSocket(index);
 		return;
@@ -246,12 +246,12 @@ void sendMessage(int index)
 	printf("%s", sendBuff);
 	if (SOCKET_ERROR == bytesSent)
 	{
-		printf("Time Server: Error at send(): %d", WSAGetLastError());
+		printf("Error at send(): %d", WSAGetLastError());
 		return;
 	}
 
 
-	printf("Time Server: Sent: %d \\%d bytes of \" %s\" message.\n", bytesSent, strlen(sendBuff), sendBuff);
+	printf("Sent: %d \\%d bytes of \" %s\" message.\n", bytesSent, strlen(sendBuff), sendBuff);
 
 	sockets[index].status = IDLE;
 	freeRequest(sockets[index].request);
