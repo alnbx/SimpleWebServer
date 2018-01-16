@@ -8,10 +8,11 @@
 // External functions
 /*******************************************************************************************************************************/
 int initializeRequest(request * req);
-int initializeResponse(response * res);
-void initializeSocketState(SocketState *sockerState);
+int initializeResponse(response * res, request *req);
 char *getFullPath(char *pathToConcat);
+void initializeSocketState(SocketState *sockerState);
 
+const char *rootFolder = "C:\\www";
 /*******************************************************************************************************************************/
 // Internal functions
 /*******************************************************************************************************************************/
@@ -58,10 +59,9 @@ int initializeResponse(response * res, request *req)
 	return SUCCESS;
 }
 
-
 /********************************************************************************************************************************
 Function Name:			initializeSocketState
-Return value:			void
+Return value:			None
 Description:			initializing a socket state
 Dinamically allocated:	None
 ********************************************************************************************************************************/
@@ -81,14 +81,13 @@ Dinamically allocated:	(char *)ret
 char * getFullPath(char *pathToConcat)
 {
 	char *ret = NULL;
-	int len = strlen("C:\\www\\");
+	int len = strlen(rootFolder);
 
 	ret = (char *)malloc(sizeof(char) * strlen(pathToConcat) + 1 + len);
 	if (NULL == ret) { return NULL; }
-
-	if (*pathToConcat != '\\') { return NULL; }
-	strcpy_s(ret, len, "C:\\www\\");
-	strcat(ret, (const char *)(pathToConcat + 1));
+	
+	strcpy(ret, rootFolder);
+	strcat(ret, (const char *)(pathToConcat));
 
 	return ret;
 }

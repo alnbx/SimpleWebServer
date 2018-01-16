@@ -154,7 +154,7 @@ void acceptConnection(int index)
 	printf("Time Server: Client %s", inet_ntoa(from.sin_addr));
 	printf(": %d is connected. \n", ntohs(from.sin_port));
 
-	initializeRequest(sockets[index].request);
+	//initializeRequest(sockets[index].request);
 
 	//
 	// Set the socket to be in non-blocking mode.
@@ -234,13 +234,15 @@ void receiveMessage(int index)
 void sendMessage(int index)
 {
 	int bytesSent = 0;
-	char sendBuff[255];
+	char* sendBuff;
 
 	SOCKET msgSocket = sockets[index].id;
 	sockets[index].response = makeResponse(sockets[index].request);
 	//need to crate func that make answer to send
+	sendBuff = makeResponseText(sockets[index].response);
 
 	bytesSent = send(msgSocket, sendBuff, (int)strlen(sendBuff), 0);
+	printf("%s", sendBuff);
 	if (SOCKET_ERROR == bytesSent)
 	{
 		printf("Time Server: Error at send(): %d", WSAGetLastError());
@@ -251,5 +253,6 @@ void sendMessage(int index)
 	printf("Time Server: Sent: %d \\%d bytes of \" %s\" message.\n", bytesSent, strlen(sendBuff), sendBuff);
 
 	sockets[index].status = IDLE;
+	freeRequest(sockets[index].request);
 	freeResponse(sockets[index].response);
 }

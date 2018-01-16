@@ -28,7 +28,7 @@ static int parseNonPOSTRequest(request *req, char *text);
 static int parsePOSTRequest(request *req, char *text);
 static int setMethod(request *req, char *method, char **text);
 static int putPath(request *req, char *text);
-static int validatePath(char *path);
+static int validatePath(request* req);
 static int parsePath(request* req, char **text);
 static int parseRequestByMethod(request *req, char *text);
 /*******************************************************************************************************************************/
@@ -45,7 +45,8 @@ Dinamically allocated:	None
 static int fileExist(char *filename)
 {
 	struct stat buffer;
-	return (stat(filename, &buffer) == 0) ? SUCCESS : FAILURE;
+	if (!(stat(filename, &buffer) == 0)) { return FAILURE; }
+	return (buffer.st_mode & S_IFDIR) ? FAILURE : SUCCESS;
 }
 
 /********************************************************************************************************************************
@@ -71,7 +72,7 @@ Dinamically allocated:	None
 void freeRequest(request *req)
 {
 	int i = 0;
-
+	
 	if (req->numberOfHeaders > 0) { freePointers(req->headers, req->numberOfHeaders); }
 	if (req->numberOfDataArguments > 0) { freePointers(req->dataArguments, req->numberOfDataArguments); }
 	if (!(NULL == req->path)) { free(req->path); }
@@ -111,9 +112,9 @@ static int countHeaders(char *text, const char *delim)
 	int numberOfHeaders = 0;
 
 	token = strtok(text, delim);
-	while (NULL != token)
-	{
-		numberOfHeaders++;
+	while (NULL != token) 
+	{ 
+		numberOfHeaders++; 
 		token = strtok(NULL, delim);
 	}
 
@@ -174,7 +175,7 @@ static int parseData(request *req, char *text)
 
 	memoryAddress = copyMemory(text);
 	if (NULL == memoryAddress) { return FAILURE; }
-
+	
 	req->numberOfDataArguments = countHeaders(memoryAddress, "&");
 	req->dataArguments = allocateArrayOfCharPointers(req->numberOfDataArguments);
 	if (NULL == req->dataArguments) { return FAILURE; }
@@ -187,7 +188,7 @@ static int parseData(request *req, char *text)
 		memoryAddress = allocateHeader(len);
 		if (NULL == memoryAddress) { return FAILURE; }
 		*(req->dataArguments + i) = memoryAddress;
-		strcpy(*(req->dataArguments + i), token);
+		strcpy(*(req->dataArguments + i), token); 
 		//TODO: Check if '\0' is needed in the end?
 		i++;
 		token = strtok(NULL, "&");
@@ -225,7 +226,7 @@ static int validateHeaders(request *req)
 
 	if (!(mustContainHeaders(req))) { return FAILURE; }
 
-	for (; i < req->numberOfHeaders; i++)
+	for (; i < req->numberOfHeaders - 1; i++)
 	{
 		dots = strchr(*(req->headers + i), ':');
 		if (!(dots)) { return FAILURE; }
@@ -258,7 +259,7 @@ static int parseHeaders(request *req, char *text)
 	while (NULL != token)
 	{
 		len = strlen(token);
-		memoryAddress = allocateHeader(len + 1);
+		memoryAddress = allocateHeader(len + 2);
 		if (memoryAddress == NULL) { return FAILURE; }
 		*(req->headers + i) = memoryAddress;
 		strcpy(*(req->headers + i), token);
@@ -345,12 +346,29 @@ Dinamically allocated:	None
 static int putPath(request *req, char *text)
 {
 	int len = 0;
-
-	len = strlen(*text);
+	char *token = strtok(text, "?");
+	char* beggingPath = NULL;
+	len = strlen(token);
 	req->path = allocateHeader(len + 1);
-	if (req->path == NULL) { return FAILURE; }
-	strcpy(req->path, *text);
-	*(req->path + len) = '\0';
+	beggingPath = req->path;
+	if ((NULL == req->path) || (*text != '/')) { return FAILURE; }
+	if (1 == len) { *(req->path) = '\0'; return SUCCESS; }
+	//path
+	strcpy(req->path, "\\");
+	req->path += 1;
+	token = strtok(text, "/");
+	while (NULL != token)
+	{
+		strcpy(req->path, token);
+		req->path += strlen(token);
+		strcpy(req->path, "\\");
+		req->path += 1;
+		token = strtok(NULL, "/");
+	}
+
+	req->path -= 1;
+	*(req->path) = '\0';
+	req->path = beggingPath;
 
 	//*text += len + 1;
 	return SUCCESS;
@@ -362,12 +380,11 @@ Return value:			int - SUCCESS or FAILURE
 Description:			parsing the path out of a request.
 Dinamically allocated:	None
 ********************************************************************************************************************************/
-static int validatePath(request* req, char *path)
+static int validatePath(request* req)
 {
-	char *token = strtok(path, "?");
-	char *fullpath = getFullPath(token);
+	char *fullpath = getFullPath(req->path);
 
-	req->fileExists = fileExist(token);
+	req->fileExists = fileExist(fullpath);
 	req->fullFilePath = fullpath;
 
 	return SUCCESS;
@@ -385,12 +402,12 @@ static int parsePath(request* req, char **text)
 	char *beginningOfData = NULL;
 	int legalPathAndData = FAILURE;
 
-	beginningOfData = strchr(token, '?');
-	legalPathAndData = validatePath(req, token);
+	beginningOfData = strchr(token, "?");
+	if (FAILURE == putPath(req, token)) { return FAILURE; }
+	legalPathAndData = validatePath(req);
 
 	if (SUCCESS == legalPathAndData)
 	{
-		if (FAILURE == putPath(req, token)) { return FAILURE; }
 		if (!(NULL == beginningOfData))
 		{
 			parseData(req, beginningOfData);
@@ -419,16 +436,16 @@ static int parseRequestByMethod(request *req, char *text)
 	isPost = setMethod(req, token, &text);
 	legalPath = parsePath(req, &text);
 
-	if (ILLEGAL == isPost || FAILURE == legalPath) { return FAILURE; }
-	else if (!(POST == isPost)) { return parseNonPOSTRequest(req, text); }
-	else { return parsePOSTRequest(req, text); }
+	if (ILLEGAL == isPost || FAILURE == legalPath)	{ return FAILURE; }
+	else if (!(POST == isPost))						{ return parseNonPOSTRequest(req, text); }
+	else											{ return parsePOSTRequest(req, text); }
 
 	return SUCCESS;
 }
 
 /********************************************************************************************************************************
 Function Name:			parseRequestByMethod
-Return value:			request *
+Return value:			request * 
 Description:			parsing an incoming request.
 Dinamically allocated:	(request *)req
 ********************************************************************************************************************************/

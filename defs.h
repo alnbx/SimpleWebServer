@@ -1,4 +1,5 @@
 #pragma once
+
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
@@ -18,9 +19,11 @@
 #define SEND					4
 #define SEND_TIME				1
 #define SEND_SECONDS			2
-enum methods { GET = 0, HEAD = 1, OPTIONS = 2, PUT = 3, MDELETE = 4, TRACE = 5, POST = 6, ILLEGAL = 7, enumSize = 8 };
+enum methods {GET = 0, HEAD = 1, OPTIONS = 2, PUT = 3, MDELETE = 4, TRACE = 5, POST = 6, ILLEGAL = 7, enumSize = 8 };
 
-typedef struct _request
+extern const char *rootFolder;
+
+typedef struct _request 
 {
 	int method;
 	int fileExists;
@@ -41,7 +44,6 @@ typedef struct _response
 	int responseCode;
 	int numberOfHeaders;
 	char *responesText;
-	int len;
 	char **headers;
 	char *responseData;
 } response;
