@@ -328,9 +328,9 @@ static int setMethod(request *req, char *method, char **text)
 	//else if(0 == strncmp("POST", method, 4))   { req->method = POST; *text += 4; isPost = TRUE; }
 	else if (0 == strncmp("HEAD", method, 4)) { req->method = HEAD; *text += 4; }
 	else if (0 == strncmp("OPTIONS", method, 7)) { req->method = OPTIONS; *text += 8; }
-	else if (0 == strncmp("PUT", method, 3)) { req->method = PUT; *text += 4; }
-	else if (0 == strncmp("DELETE", method, 6)) { req->method = MDELETE; *text += 7; }
-	else if (0 == strncmp("TRACE", method, 5)) { req->method = TRACE; *text += 6; }
+	else if (0 == strncmp("PUT", method, 3)) { req->method = PUT; *text += 3; }
+	else if (0 == strncmp("DELETE", method, 6)) { req->method = MDELETE; *text += 6; }
+	else if (0 == strncmp("TRACE", method, 5)) { req->method = TRACE; *text += 5; }
 	else req->method = ILLEGAL;
 
 	*text += 1;
@@ -400,7 +400,11 @@ static int parsePath(request* req, char **text)
 {
 	char *token = strtok(*text, " ");
 	char *beginningOfData = NULL;
+	char *beginningOfText = *text;
+	int len = 0;
 	int legalPathAndData = FAILURE;
+
+	len = strlen(token) + 1;
 
 	beginningOfData = strchr(token, "?");
 	if (FAILURE == putPath(req, token)) { return FAILURE; }
@@ -408,13 +412,9 @@ static int parsePath(request* req, char **text)
 
 	if (SUCCESS == legalPathAndData)
 	{
-		if (!(NULL == beginningOfData))
-		{
-			parseData(req, beginningOfData);
-			*text += strlen(token) + 1 + strlen(beginningOfData) + 2;
-		}
-		else { *text += strlen(token) + 1; }
-
+		if (!(NULL == beginningOfData))  { parseData(req, beginningOfData); }
+		
+		*text = beginningOfText + len;
 		return SUCCESS;
 	}
 

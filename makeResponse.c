@@ -189,6 +189,7 @@ static int addFolderIfNeeded(char *path)
 	size_t pathLen = 0;
 	size_t rootFolderLen = 0;
 	char *folder = NULL;
+	char *folderBeginning = NULL;
 	char *token = NULL;
 	char *addFolderPath = NULL;
 	struct stat sb;
@@ -199,6 +200,7 @@ static int addFolderIfNeeded(char *path)
 	len = pathLen - rootFolderLen;
 	folder = (char *)malloc(sizeof(char) * (len + 1));
 	if (NULL == folder) { return FAILURE; }
+	folderBeginning = folder;
 	strcpy(folder, path + rootFolderLen + 1);
 
 	addFolderPath = (char *)malloc(sizeof(char) * (pathLen + 1));
@@ -206,23 +208,19 @@ static int addFolderIfNeeded(char *path)
 	strcpy(addFolderPath, rootFolder);
 	addFolderPath[rootFolderLen] = '\0';
 	
-	token = strtok(folder, "\\");
-	while (NULL != token)
+	while (strchr(folder, '\\'))
 	{
-		//sb.st_mode & S_IFDIR
-		//S_ISDIR(sb.st_mode)
-		if (stat(token, &sb) == 0 && (sb.st_mode & S_IFDIR))
+		token = strtok(folder, "\\");
+		strcat(addFolderPath, "\\");
+		strcat(addFolderPath, token);
+		if (!((stat(addFolderPath, &sb) == 0) && (sb.st_mode & S_IFDIR)))
 		{
-			strcpy(addFolderPath + rootFolderLen, token);
-			rootFolderLen += strlen(token);
 			if (!(0 == _mkdir(addFolderPath))) { return FAILURE; }
-			strcpy(addFolderPath + rootFolderLen, "\\");
-			rootFolderLen += strlen("\\");
-			addFolderPath[rootFolderLen] = '\0';
+			folder += strlen(token) + 1;
 		}
 	}
 
-	free(folder);
+	free(folderBeginning);
 	free(addFolderPath);
 
 	return SUCCESS;	
@@ -237,7 +235,9 @@ Dinamically allocated:	None
 static int createNewFileOrReplace(char *path, char *requestData, response *res)
 {
 	FILE *f = NULL;
-	f = fopen(path, "w");
+	addFolderIfNeeded(res->request->fullFilePath);
+	
+	f = fopen(res->request->fullFilePath, "w");
 
 	if (NULL == f) { return FAILURE; }
 	fprintf(f, "%s", requestData);
@@ -255,8 +255,11 @@ static int deleteFile(char *path, response *res)
 {
 	int removeFile = 0;
 	int len = 0;
-	removeFile = remove(path);
+	struct stat sb;
 
+	if ((stat(path, &sb) == 0) && (sb.st_mode & S_IFDIR)) { return fillData(res, urlNotDeleted); }
+
+	removeFile = remove(path);
 	return (0 == removeFile) ? fillData(res, urlDeleted) : fillData(res, urlNotDeleted);
 }
 
@@ -289,39 +292,20 @@ static int fillResponseData(response *res)
 	char    *buffer;
 	long    numbytes;
 
-	/* open an existing file for reading */
-	infile = fopen("test.rib", "r");
+	infile = fopen(res->request->fullFilePath, "r");
+	if (infile == NULL) { return FAILURE; }
 
-	/* quit if the file does not exist */
-	if (infile == NULL)
-		return 1;
-
-	/* Get the number of bytes */
 	fseek(infile, 0L, SEEK_END);
 	numbytes = ftell(infile);
-
-	/* reset the file position indicator to
-	the beginning of the file */
 	fseek(infile, 0L, SEEK_SET);
 
-	/* grab sufficient memory for the
-	buffer to hold the text */
 	buffer = (char*)calloc(numbytes, sizeof(char));
+	if (!(buffer == NULL)) { return FAILURE; }
 
-	/* memory error */
-	if (buffer == NULL)
-		return 1;
-
-	/* copy all the text into the buffer */
 	fread(buffer, sizeof(char), numbytes, infile);
 	fclose(infile);
-
-	/* confirm we have read the file by
-	outputing it to the console */
-	printf("The file called test.dat contains this text\n\n%s", buffer);
-
-	/* free the memory we used for the buffer */
 	free(buffer);
+
 	return SUCCESS;
 }
 
@@ -346,7 +330,7 @@ if method was OPTIONS - return 200
 ***************************************************************/
 static int doWhatUserAsked(response *res)
 {
-	if		((res->request->method == GET) && (res->request->fileExists))     { fillResponseData(res); return SUCCESS; }
+	if		((res->request->method == GET) && (res->request->fileExists))     { return fillResponseData(res); }
 	else if ((res->request->method == HEAD) && (res->request->fileExists))    { return SUCCESS; }
 	else if ((res->request->method == MDELETE) && (res->request->fileExists)) { return (deleteFile(res->request->fullFilePath, res)); }
 	else if (res->request->method == PUT)									  { return (createNewFileOrReplace(res->request->fullFilePath, res->request->requestData, res));}
@@ -438,15 +422,17 @@ static char * responseCotentLegth(char *responseData)
 	size_t temp = 0;
 	int responseLenDigits = 0;
 	char *ret = NULL;
-	char buf[100];
+	char *buf = NULL;
 
 	responseLen = (NULL == responseData) ? 0 : strlen(responseData);
 	temp = responseLen;
 	while (0 != temp) { responseLenDigits++; temp /= 10; }
+	if (0 == responseLenDigits) { responseLenDigits++; }
 
 	len = strlen(contentLength);
 	ret = (char *)malloc(sizeof(char) * len + 1 + responseLenDigits);
-	if (NULL == ret) { return NULL; }
+	buf = (char *)malloc(sizeof(char) * responseLenDigits + 1);
+	if ((NULL == ret) || (NULL == buf)) { return NULL; }
 
 	sprintf(buf, "%d", responseLen);
 	strcpy(ret, contentLength);

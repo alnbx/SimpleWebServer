@@ -1,5 +1,6 @@
-#include "Server.h"
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 
+#include "Server.h"
 
 SocketState sockets[MAX_SOCKETS];
 int socketsCount = 0;
