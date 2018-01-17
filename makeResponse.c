@@ -289,7 +289,6 @@ static int fillResponseData(response *res)
 	*/
 
 	FILE    *infile;
-	char    *buffer;
 	long    numbytes;
 
 	infile = fopen(res->request->fullFilePath, "r");
@@ -299,12 +298,13 @@ static int fillResponseData(response *res)
 	numbytes = ftell(infile);
 	fseek(infile, 0L, SEEK_SET);
 
-	buffer = (char*)calloc(numbytes, sizeof(char));
-	if (!(buffer == NULL)) { return FAILURE; }
+	res->responseData = (char*)malloc(sizeof(char) * numbytes + 1);
+	memset(res->responseData, 0, numbytes + 1);
+	if (res->responseData == NULL) { return FAILURE; }
 
-	fread(buffer, sizeof(char), numbytes, infile);
+	fread(res->responseData, sizeof(char), numbytes, infile);
 	fclose(infile);
-	free(buffer);
+	//(res->responseData)[numbytes] = '\0';
 
 	return SUCCESS;
 }
