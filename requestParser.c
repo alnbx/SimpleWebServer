@@ -327,7 +327,7 @@ static int setMethod(request *req, char *method, char **text)
 	if (0 == strncmp("GET", method, 3)) { req->method = GET; *text += 3; }
 	//else if(0 == strncmp("POST", method, 4))   { req->method = POST; *text += 4; isPost = TRUE; }
 	else if (0 == strncmp("HEAD", method, 4)) { req->method = HEAD; *text += 4; }
-	else if (0 == strncmp("OPTIONS", method, 7)) { req->method = OPTIONS; *text += 8; }
+	else if (0 == strncmp("OPTIONS", method, 7)) { req->method = OPTIONS; *text += 7; }
 	else if (0 == strncmp("PUT", method, 3)) { req->method = PUT; *text += 3; }
 	else if (0 == strncmp("DELETE", method, 6)) { req->method = MDELETE; *text += 6; }
 	else if (0 == strncmp("TRACE", method, 5)) { req->method = TRACE; *text += 5; }
