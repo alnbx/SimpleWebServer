@@ -19,6 +19,7 @@
 #define SEND					4
 #define SEND_TIME				1
 #define SEND_SECONDS			2
+#define TIME_OUT			    120
 enum methods {GET = 0, HEAD = 1, OPTIONS = 2, PUT = 3, MDELETE = 4, TRACE = 5, POST = 6, ILLEGAL = 7, enumSize = 8 };
 
 extern const char *rootFolder;
@@ -53,11 +54,8 @@ typedef struct _SocketState
 	SOCKET id;			// Socket handle
 	request *request;
 	response *response;
-	//int methodsStatus;
 	int status;
-	//int	recv;			// Receiving?
-	//int	send;			// Sending?
-	//int sendSubType;	// Sending sub-type
+	time_t lastReqTime;
 
 }SocketState;
 

@@ -95,7 +95,7 @@ void mainServer(void)
 				}
 			}
 		}
-
+		
 		for (int i = 0; i < MAX_SOCKETS && nfd > 0; i++)
 		{
 			if (FD_ISSET(sockets[i].id, &waitSend))
@@ -107,6 +107,17 @@ void mainServer(void)
 					sendMessage(i);
 					break;
 				}
+			}
+		}
+		
+		time_t timer;
+		time(&timer);
+		for (int i = 0; i < MAX_SOCKETS; i++)
+		{
+			if ((sockets[i].status == SEND)&& (timer - sockets[i].lastReqTime >= TIME_OUT))
+			{
+				closesocket(sockets[i].id);
+				removeSocket(i);
 			}
 		}
 	}
@@ -125,7 +136,6 @@ int addSocket(SOCKET id, int what)
 		{
 			sockets[i].id = id;
 			sockets[i].status = what;
-			//(sockets[i].response)->len = 0;
 			socketsCount++;
 			return 1;
 		}
@@ -135,7 +145,6 @@ int addSocket(SOCKET id, int what)
 
 void removeSocket(int index)
 {
-	sockets[index].status = EMPTY;
 	sockets[index].status = EMPTY;
 	socketsCount--;
 }
@@ -178,9 +187,11 @@ void receiveMessage(int index)
 {
 	SOCKET msgSocket = sockets[index].id;
 	char buffer[256];
-	//int len = (sockets[index].response)->len;
 	int bytesRecv = recv(msgSocket, buffer, sizeof(buffer), 0);
+	time_t currTime;
 
+	time(&currTime);
+	sockets[index].lastReqTime = currTime;
 	
 	if (SOCKET_ERROR == bytesRecv)
 	{
@@ -199,35 +210,7 @@ void receiveMessage(int index)
 	{
 		sockets[index].request = parseRequest(buffer);
 		sockets[index].status = SEND;
-		//sockets[index].buffer[len + bytesRecv] = '\0'; //add the null-terminating to make it a string
-		//printf("Time Server: Recieved: %s  bytes of \" << &sockets[index].buffer[len] << message.\n", bytesRecv);
 
-		//sockets[index].len += bytesRecv;
-
-		/*
-		if (strncmp(sockets[index].buffer, "TimeString", 10) == 0)
-			{
-				sockets[index].send  = SEND;
-				sockets[index].sendSubType = SEND_TIME;
-				memcpy(sockets[index].buffer, &sockets[index].buffer[10], sockets[index].len - 10);
-				sockets[index].len -= 10;
-				return;
-			}
-			else if (strncmp(sockets[index].buffer, "SecondsSince1970", 16) == 0)
-			{
-				sockets[index].send  = SEND;
-				sockets[index].sendSubType = SEND_SECONDS;
-				memcpy(sockets[index].buffer, &sockets[index].buffer[16], sockets[index].len - 16);
-				sockets[index].len -= 16;
-				return;
-			}
-			else if (strncmp(sockets[index].buffer, "Exit", 4) == 0)
-			{
-				closesocket(msgSocket);
-				removeSocket(index);
-				return;
-			}*/
-		
 	}
 
 }
